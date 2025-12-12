@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const cors = require("cors");
 require("dotenv").config();
@@ -76,6 +76,15 @@ async function run() {
       } catch (error) {
         res.status(500).send({ message: "filtering failed" });
       }
+    });
+
+    // View Details
+    app.get("/view-details/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await scholarshipCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
