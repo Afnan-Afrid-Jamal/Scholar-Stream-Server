@@ -94,6 +94,46 @@ async function run() {
       res.send(result);
     });
 
+    // Store users data
+    app.post("/register", async (req, res) => {
+      const { name, email, photoURL, role } = req.body;
+
+      if (!name || !email || !photoURL || !role) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      const existingUser = await usersCollection.findOne({ email });
+
+      const currentTime = new Date();
+
+      if (existingUser) {
+        // User exists → update lastLogin
+        await usersCollection.updateOne(
+          { email },
+          { $set: { lastLogin: currentTime } }
+        );
+        return res
+          .status(200)
+          .json({ message: "User already exists. Login time updated." });
+      }
+
+      // New user → insert with createdAt and lastLogin
+      const newUser = {
+        name,
+        email,
+        photoURL,
+        role,
+        createdAt: currentTime,
+        lastLogin: currentTime,
+      };
+
+      const result = await usersCollection.insertOne(newUser);
+      res.status(201).json({
+        message: "User registered successfully",
+        userId: result.insertedId,
+      });
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
