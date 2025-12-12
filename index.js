@@ -26,6 +26,7 @@ async function run() {
     // Collections
     const database = client.db("ScholarshipStreamDB");
     const scholarshipCollection = database.collection("Scholarships");
+    const reviewCollection = database.collection("Reviews");
 
     // Get top 6 scholarships (lowest application fees)
     app.get("/topSixScholarships", async (req, res) => {
@@ -84,6 +85,12 @@ async function run() {
       const result = await scholarshipCollection.findOne({
         _id: new ObjectId(id),
       });
+      res.send(result);
+    });
+
+    // Get Review all details
+    app.get("/reviewDetails", async (req, res) => {
+      const result = await reviewCollection.find().toArray();
       res.send(result);
     });
 
