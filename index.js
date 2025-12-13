@@ -27,6 +27,7 @@ async function run() {
     const database = client.db("ScholarshipStreamDB");
     const scholarshipCollection = database.collection("Scholarships");
     const reviewCollection = database.collection("Reviews");
+    const usersCollection = database.collection("Users");
 
     // Get top 6 scholarships (lowest application fees)
     app.get("/topSixScholarships", async (req, res) => {
@@ -98,13 +99,20 @@ async function run() {
     app.post("/register", async (req, res) => {
       const { name, email, photoURL, role } = req.body;
 
-      if (!name || !email || !photoURL || !role) {
+      if (!name || !email || !photoURL) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
       const existingUser = await usersCollection.findOne({ email });
 
-      const currentTime = new Date();
+      const currentTime = new Date().toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
       if (existingUser) {
         // User exists → update lastLogin
@@ -122,7 +130,7 @@ async function run() {
         name,
         email,
         photoURL,
-        role,
+        role: "Student",
         createdAt: currentTime,
         lastLogin: currentTime,
       };
@@ -132,6 +140,27 @@ async function run() {
         message: "User registered successfully",
         userId: result.insertedId,
       });
+    });
+
+    // Get user data by email
+    app.get("/user", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.status(400).json({ message: "Email is required" });
+        }
+
+        const result = await usersCollection.findOne({ email: email });
+
+        if (!result) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal Server Error" });
+      }
     });
 
     await client.db("admin").command({ ping: 1 });
