@@ -6,8 +6,15 @@ const cors = require("cors");
 require("dotenv").config();
 const port = 3000;
 
-app.use(cors());
+// app.use(cors());
 app.use(express.json());
+
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Vite dev server
+    credentials: true,
+  })
+);
 
 const uri = process.env.MONGODB_URI;
 
@@ -160,6 +167,30 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
+      }
+    });
+
+    // Add Scholarship
+    app.post("/add-scholarship", async (req, res) => {
+      try {
+        const scholarshipData = req.body;
+
+        if (
+          !scholarshipData?.scholarshipName ||
+          !scholarshipData?.universityName
+        ) {
+          return res.status(400).json({ message: "Required fields missing" });
+        }
+
+        const result = await scholarshipCollection.insertOne(scholarshipData);
+
+        res.status(201).json({
+          message: "Scholarship added successfully",
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Failed to add scholarship" });
       }
     });
 
