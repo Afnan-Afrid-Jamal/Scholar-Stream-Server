@@ -210,6 +210,36 @@ async function run() {
       }
     });
 
+    // Update Scholarship
+    app.put("/updateScholarship/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updatedData = req.body;
+
+        const result = await scholarshipCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedData }
+        );
+
+        if (result.modifiedCount > 0) {
+          res.send({
+            success: true,
+            message: "Scholarship updated successfully",
+          });
+        } else {
+          res.send({
+            success: false,
+            message: "No changes made or scholarship not found",
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ success: false, message: "Internal server error" });
+      }
+    });
+
     // Get all users data by role
     app.get("/users/role", async (req, res) => {
       const { role } = req.query;
@@ -226,7 +256,7 @@ async function run() {
       }
     });
 
-    // Backend: updateRole route
+    // Update user's Role
     app.patch("/updateRole", async (req, res) => {
       try {
         const { id, role } = req.body; // frontend থেকে id এবং role আসবে
