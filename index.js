@@ -104,9 +104,9 @@ async function run() {
 
     // Store users data
     app.post("/register", async (req, res) => {
-      const { name, email, photoURL, role } = req.body;
+      const { name, email, photoURL } = req.body;
 
-      if (!name || !email || !photoURL) {
+      if (!name || !email) {
         return res.status(400).json({ message: "All fields are required" });
       }
 
@@ -228,7 +228,12 @@ async function run() {
 
     // Delete User
 
-    
+    app.delete("/users/:id", async (req, res) => {
+      const { id } = req.params;
+
+      const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
