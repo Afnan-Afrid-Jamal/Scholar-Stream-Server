@@ -226,6 +226,32 @@ async function run() {
       }
     });
 
+    // Backend: updateRole route
+    app.patch("/updateRole", async (req, res) => {
+      try {
+        const { id, role } = req.body; // frontend থেকে id এবং role আসবে
+
+        if (!id || !role) {
+          return res.status(400).json({ message: "ID and role are required" });
+        }
+
+        // MongoDB collection ধরে নিই `usersCollection`
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) }, // MongoDB ObjectId এ convert
+          { $set: { role: role } }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ message: "Role updated successfully" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
     // Delete User
 
     app.delete("/users/:id", async (req, res) => {
