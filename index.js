@@ -240,6 +240,43 @@ async function run() {
       }
     });
 
+    // Delete Scholarship
+    app.delete("/delete-scholarship/:id", async (req, res) => {
+      const id = req.params.id;
+
+      let query;
+      try {
+        query = { _id: new ObjectId(id) };
+      } catch (error) {
+        return res
+          .status(400)
+          .send({ success: false, message: "Invalid scholarship ID format." });
+      }
+
+      try {
+        const result = await scholarshipCollection.deleteOne(query);
+
+        if (result.deletedCount === 1) {
+          res.send({
+            success: true,
+            deletedCount: 1,
+            message: "Scholarship deleted successfully.",
+          });
+        } else {
+          res.status(404).send({
+            success: false,
+            deletedCount: 0,
+            message: "Scholarship not found or already deleted.",
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting scholarship:", error);
+        res.status(500).send({
+          success: false,
+          message: "Server error during deletion. Please check server logs.",
+        });
+      }
+    });
     // Get all users data by role
     app.get("/users/role", async (req, res) => {
       const { role } = req.query;
