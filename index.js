@@ -102,6 +102,15 @@ async function run() {
       res.send(result);
     });
 
+    // Delete Reviews
+    app.delete("/deleteReview/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await reviewCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+
     // Store users data
     app.post("/register", async (req, res) => {
       const { name, email, photoURL } = req.body;
@@ -122,7 +131,6 @@ async function run() {
       });
 
       if (existingUser) {
-        // User exists → update lastLogin
         await usersCollection.updateOne(
           { email },
           { $set: { lastLogin: currentTime } }
@@ -132,7 +140,6 @@ async function run() {
           .json({ message: "User already exists. Login time updated." });
       }
 
-      // New user → insert with createdAt and lastLogin
       const newUser = {
         name,
         email,
@@ -296,15 +303,14 @@ async function run() {
     // Update user's Role
     app.patch("/updateRole", async (req, res) => {
       try {
-        const { id, role } = req.body; // frontend থেকে id এবং role আসবে
+        const { id, role } = req.body;
 
         if (!id || !role) {
           return res.status(400).json({ message: "ID and role are required" });
         }
 
-        // MongoDB collection ধরে নিই `usersCollection`
         const result = await usersCollection.updateOne(
-          { _id: new ObjectId(id) }, // MongoDB ObjectId এ convert
+          { _id: new ObjectId(id) },
           { $set: { role: role } }
         );
 
