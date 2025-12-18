@@ -128,6 +128,41 @@ async function run() {
       }
     });
 
+    // Edit review
+    app.post("/update-review/:id", async (req, res) => {
+      const id = req.params.id;
+      const { data } = req.body;
+
+      const result = await reviewCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            ratingPoint: data.ratingPoint,
+            reviewComment: data.reviewComment,
+          },
+        }
+      );
+
+      res.send(result);
+    });
+
+    // Delete Review
+    app.delete("/delete-review/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await reviewCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send(result);
+      } catch (error) {
+        res
+          .status(500)
+          .send({ error: true, message: "Failed to delete review" });
+      }
+    });
+
     // ================= Users =================
 
     app.post("/register", async (req, res) => {
