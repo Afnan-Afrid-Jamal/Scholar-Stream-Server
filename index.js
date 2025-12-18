@@ -34,7 +34,7 @@ async function run() {
     const scholarshipCollection = database.collection("Scholarships");
     const reviewCollection = database.collection("Reviews");
     const usersCollection = database.collection("Users");
-    const paymentsCollection = database.collection("Payments");
+    const applicationCollection = database.collection("Applications");
 
     // ================= Scholarships =================
 
@@ -107,6 +107,25 @@ async function run() {
         _id: new ObjectId(req.params.id),
       });
       res.send(result);
+    });
+
+    // Get review by specific user
+
+    app.get("/ReviewByAUser", async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        return res.status(400).send({ error: "Email is required" });
+      }
+
+      try {
+        const result = await reviewCollection
+          .find({ userEmail: email })
+          .toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error: "Something went wrong" });
+      }
     });
 
     // ================= Users =================
@@ -219,21 +238,39 @@ async function run() {
         });
 
         // Save pending payment in DB
-        await paymentsCollection.insertOne({
-          userEmail,
+
+        // get user data
+        const user = usersCollection.findOne({ email: userEmail });
+
+        await applicationCollection.insertOne({
           scholarshipId,
           scholarshipName: scholarship.scholarshipName,
-          applicationFees: scholarship.applicationFees,
-          serviceCharge: scholarship.serviceCharge,
+
+          userId: user._id,
+          userName: user.name,
+          userEmail,
+
+          universityName: scholarship.universityName,
+          scholarshipCategory: scholarship.scholarshipCategory,
+          degree: scholarship.degree,
+
+          applicationFees: Number(scholarship.applicationFees),
+          serviceCharge: Number(scholarship.serviceCharge),
+
           totalPaid:
             Number(scholarship.applicationFees) +
             Number(scholarship.serviceCharge),
-          status: "pending",
-          date: new Date(),
+
+          applicationStatus: "pending",
+          paymentStatus: "unpaid",
+
+          applicationDate: new Date(), // ✅ Date object
+          feedback: "",
+
           sessionId: session.id,
         });
 
-        res.send({ url: session.url }); // Client will redirect to this URL
+        res.send({ url: session.url });
       } catch (err) {
         console.log(err);
         res
@@ -247,15 +284,110 @@ async function run() {
       const { transactionId } = req.body;
 
       try {
-        const result = await paymentsCollection.updateOne(
+        const result = await applicationCollection.updateOne(
           { sessionId: transactionId },
-          { $set: { status: "paid" } }
+          { $set: { paymentStatus: "paid" } }
         );
         res.send(result);
       } catch (err) {
         console.log(err);
         res.status(500).send({ message: "Failed to update payment status" });
       }
+    });
+
+    // ================= Payment Success Handler =================
+    app.get("/application-by-session", async (req, res) => {
+      const { sessionId } = req.query;
+
+      if (!sessionId) {
+        return res.status(400).send({ message: "Session ID is required" });
+      }
+
+      try {
+        const application = await applicationCollection.findOne({ sessionId });
+        if (!application) {
+          return res.status(404).send({ message: "Application not found" });
+        }
+        res.send(application);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Failed to fetch application" });
+      }
+    });
+
+    // ================= Payment Failed Handler =================
+    app.get("/application-failed", async (req, res) => {
+      const { sessionId } = req.query;
+
+      if (!sessionId) {
+        return res.status(400).send({ message: "Session ID is required" });
+      }
+
+      try {
+        const application = await applicationCollection.findOne({ sessionId });
+        if (!application) {
+          return res.status(404).send({ message: "Application not found" });
+        }
+
+        // Send scholarship name and error message if available
+        res.send({
+          scholarshipName: application.scholarshipName,
+          errorMessage:
+            application.paymentError || "Payment failed. Please try again.",
+        });
+      } catch (err) {
+        console.error(err);
+        res
+          .status(500)
+          .send({ message: "Failed to fetch failed payment details" });
+      }
+    });
+
+    // Analytics
+
+    // Total Users
+    app.get("/analytics/total-users", async (req, res) => {
+      const totalUsers = await usersCollection.countDocuments();
+      res.send({ totalUsers });
+    });
+
+    // Total Scholarships
+    app.get("/analytics/total-scholarships", async (req, res) => {
+      const totalScholarships = await scholarshipCollection.countDocuments();
+      res.send({ totalScholarships });
+    });
+
+    // Total Fees Collected
+    app.get("/analytics/total-fees", async (req, res) => {
+      const result = await applicationCollection
+        .aggregate([
+          { $match: { paymentStatus: "paid" } },
+          {
+            $group: {
+              _id: null,
+              totalFees: { $sum: "$totalPaid" },
+            },
+          },
+        ])
+        .toArray();
+
+      res.send({ totalFees: result[0]?.totalFees || 0 });
+    });
+
+    // Application count per Scholarship Category
+    app.get("/analytics/category-counts", async (req, res) => {
+      const result = await applicationCollection
+        .aggregate([
+          {
+            $group: {
+              _id: "$scholarshipCategory",
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
