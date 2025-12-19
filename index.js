@@ -236,19 +236,18 @@ async function run() {
     });
 
     // ================= Stripe Checkout =================
-
     app.post("/create-checkout-session", async (req, res) => {
-      const { scholarshipId, userEmail } = req.body;
-
-      const scholarship = await scholarshipCollection.findOne({
-        _id: new ObjectId(scholarshipId),
-      });
-
-      if (!scholarship) {
-        return res.status(404).send({ message: "Scholarship not found" });
-      }
-
       try {
+        const { scholarshipId, userEmail } = req.body;
+
+        const scholarship = await scholarshipCollection.findOne({
+          _id: new ObjectId(scholarshipId),
+        });
+
+        if (!scholarship) {
+          return res.status(404).send({ message: "Scholarship not found" });
+        }
+
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
           customer_email: userEmail,
@@ -262,32 +261,34 @@ async function run() {
                 unit_amount:
                   (Number(scholarship.applicationFees) +
                     Number(scholarship.serviceCharge)) *
-                  100, // in cents
+                  100,
               },
               quantity: 1,
             },
           ],
           mode: "payment",
-          success_url: `http://localhost:5173/payment-success/${scholarshipId}?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `http://localhost:5173/payment-cancelled/${scholarshipId}`,
+          success_url: `http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `http://localhost:5173/payment-cancelled`,
         });
 
-        // Save pending payment in DB
+        // ✅ get user data (FIXED: await added)
+        const user = await usersCollection.findOne({ email: userEmail });
 
-        // get user data
-        const user = usersCollection.findOne({ email: userEmail });
-
+        // Save pending application
         await applicationCollection.insertOne({
           scholarshipId,
           scholarshipName: scholarship.scholarshipName,
 
-          userId: user._id,
-          userName: user.name,
-          userEmail,
+          userId: user?._id,
+          userName: user?.name,
+          userEmail: user?.email,
 
           universityName: scholarship.universityName,
+          universityCountry: scholarship.universityCountry,
+          universityCity: scholarship.universityCity,
           scholarshipCategory: scholarship.scholarshipCategory,
           degree: scholarship.degree,
+          subjectCategory: scholarship.subjectCategory,
 
           applicationFees: Number(scholarship.applicationFees),
           serviceCharge: Number(scholarship.serviceCharge),
@@ -299,7 +300,7 @@ async function run() {
           applicationStatus: "pending",
           paymentStatus: "unpaid",
 
-          applicationDate: new Date(), // ✅ Date object
+          applicationDate: new Date(),
           feedback: "",
 
           sessionId: session.id,
@@ -314,15 +315,20 @@ async function run() {
       }
     });
 
-    // Update payment status after successful payment
+    // ================= Payment Success =================
     app.patch("/payment-success", async (req, res) => {
-      const { transactionId } = req.body;
-
       try {
+        const { sessionId } = req.body;
+
+        if (!sessionId) {
+          return res.status(400).send({ message: "Session ID required" });
+        }
+
         const result = await applicationCollection.updateOne(
-          { sessionId: transactionId },
+          { sessionId },
           { $set: { paymentStatus: "paid" } }
         );
+
         res.send(result);
       } catch (err) {
         console.log(err);
@@ -330,48 +336,49 @@ async function run() {
       }
     });
 
-    // ================= Payment Success Handler =================
+    // ================= Get Application By Session =================
     app.get("/application-by-session", async (req, res) => {
-      const { sessionId } = req.query;
-
-      if (!sessionId) {
-        return res.status(400).send({ message: "Session ID is required" });
-      }
-
       try {
+        const { sessionId } = req.query;
+
+        if (!sessionId) {
+          return res.status(400).send({ message: "Session ID is required" });
+        }
+
         const application = await applicationCollection.findOne({ sessionId });
+
         if (!application) {
           return res.status(404).send({ message: "Application not found" });
         }
+
         res.send(application);
       } catch (err) {
-        console.error(err);
+        console.log(err);
         res.status(500).send({ message: "Failed to fetch application" });
       }
     });
 
-    // ================= Payment Failed Handler =================
+    // ================= Payment Failed =================
     app.get("/application-failed", async (req, res) => {
-      const { sessionId } = req.query;
-
-      if (!sessionId) {
-        return res.status(400).send({ message: "Session ID is required" });
-      }
-
       try {
+        const { sessionId } = req.query;
+
+        if (!sessionId) {
+          return res.status(400).send({ message: "Session ID is required" });
+        }
+
         const application = await applicationCollection.findOne({ sessionId });
+
         if (!application) {
           return res.status(404).send({ message: "Application not found" });
         }
 
-        // Send scholarship name and error message if available
         res.send({
           scholarshipName: application.scholarshipName,
-          errorMessage:
-            application.paymentError || "Payment failed. Please try again.",
+          errorMessage: "Payment failed. Please try again.",
         });
       } catch (err) {
-        console.error(err);
+        console.log(err);
         res
           .status(500)
           .send({ message: "Failed to fetch failed payment details" });
@@ -423,6 +430,24 @@ async function run() {
         .toArray();
 
       res.send(result);
+    });
+
+    app.get("/your-applications", async (req, res) => {
+      try {
+        const { email } = req.query;
+
+        if (!email) {
+          return res.status(400).send({ message: "Email is required" });
+        }
+
+        const result = await applicationCollection
+          .find({ userEmail: email })
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Server error" });
+      }
     });
 
     await client.db("admin").command({ ping: 1 });
