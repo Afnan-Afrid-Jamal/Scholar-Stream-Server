@@ -163,6 +163,17 @@ async function run() {
       }
     });
 
+    // Add review
+    app.post("/add-your-review", async (req, res) => {
+      try {
+        const reviewData = req.body;
+        const result = await reviewCollection.insertOne(reviewData);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error: "Failed to add review" });
+      }
+    });
+
     // ================= Users =================
 
     app.post("/register", async (req, res) => {
@@ -432,6 +443,7 @@ async function run() {
       res.send(result);
     });
 
+    // Get User Applications
     app.get("/your-applications", async (req, res) => {
       try {
         const { email } = req.query;
@@ -447,6 +459,45 @@ async function run() {
         res.send(result);
       } catch (error) {
         res.status(500).send({ message: "Server error" });
+      }
+    });
+
+    //Update user application
+    app.patch("/update-application/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updatedData = req.body;
+
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedData }
+        );
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Update failed", error });
+      }
+    });
+
+    // Delete Application
+    app.delete("/applications/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await applicationCollection.deleteOne({
+          _id: new ObjectId(id),
+          applicationStatus: "pending",
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(403).send({
+            message: "Only pending applications can be deleted",
+          });
+        }
+
+        res.send({ message: "Application deleted successfully" });
+      } catch (error) {
+        res.status(500).send({ message: "Delete failed", error });
       }
     });
 
