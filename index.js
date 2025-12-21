@@ -443,6 +443,8 @@ async function run() {
       res.send(result);
     });
 
+    // =========================== Applications=================================
+
     // Get User Applications
     app.get("/your-applications", async (req, res) => {
       try {
@@ -498,6 +500,62 @@ async function run() {
         res.send({ message: "Application deleted successfully" });
       } catch (error) {
         res.status(500).send({ message: "Delete failed", error });
+      }
+    });
+
+    // Get All Applications
+    app.get("/all-applications", async (req, res) => {
+      try {
+        const result = await applicationCollection.find().toArray();
+        res.status(200).send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to fetch applications" });
+      }
+    });
+
+    // Update Feedback
+    const { ObjectId } = require("mongodb");
+
+    app.patch("/update-feedback/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { updatedText } = req.body;
+
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { feedback: updatedText } }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to update feedback" });
+      }
+    });
+
+    // Cancel Application
+
+    app.patch("/cancel-application/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { applicationStatus: "cancel" } }
+        );
+
+        res.send({
+          success: true,
+          message: "Application cancelled successfully",
+          result,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to cancel application",
+        });
       }
     });
 
