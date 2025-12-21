@@ -542,7 +542,7 @@ async function run() {
 
         const result = await applicationCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $set: { applicationStatus: "cancel" } }
+          { $set: { applicationStatus: "rejected" } }
         );
 
         res.send({
@@ -555,6 +555,39 @@ async function run() {
         res.status(500).send({
           success: false,
           message: "Failed to cancel application",
+        });
+      }
+    });
+
+    // Update Application Status
+
+    app.patch("/update-applicationStatus/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { applicationStatus } = req.body;
+
+        if (!applicationStatus) {
+          return res.status(400).send({
+            success: false,
+            message: "No application status provided",
+          });
+        }
+
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { applicationStatus } }
+        );
+
+        res.send({
+          success: true,
+          message: `Application status updated to "${applicationStatus}" successfully`,
+          result,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to update application status",
         });
       }
     });
