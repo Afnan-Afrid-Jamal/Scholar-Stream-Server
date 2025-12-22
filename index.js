@@ -11,7 +11,10 @@ const port = 3000;
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://scholar-stream-project.netlify.app",
+    ],
     credentials: true,
   })
 );
@@ -28,7 +31,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const database = client.db("ScholarshipStreamDB");
     const scholarshipCollection = database.collection("Scholarships");
@@ -278,11 +281,10 @@ async function run() {
             },
           ],
           mode: "payment",
-          success_url: `http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `http://localhost:5173/payment-cancelled`,
+          success_url: `https://scholar-stream-project.netlify.app/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `https://scholar-stream-project.netlify.app/payment-cancelled`,
         });
 
-        // ✅ get user data (FIXED: await added)
         const user = await usersCollection.findOne({ email: userEmail });
 
         // Save pending application
@@ -592,7 +594,7 @@ async function run() {
       }
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("MongoDB Connected");
   } finally {
   }
